@@ -30,9 +30,24 @@ export const CustomerDashboard: React.FC = () => {
   const [rescheduledDate, setRescheduledDate] = useState('');
   const [rescheduleNotes, setRescheduleNotes] = useState('');
 
+  const [publicMetrics, setPublicMetrics] = useState<{
+    completedDeliveries?: number;
+    activeShipments?: number;
+    registeredCustomers?: number;
+    deliverySuccessRate?: string;
+  }>({});
+
   useEffect(() => {
     fetchMyOrders();
+    fetchPublicMetrics();
   }, []);
+
+  const fetchPublicMetrics = async () => {
+    try {
+      const res = await apiClient.get('/analytics/public');
+      if (res.data.success) setPublicMetrics(res.data.data);
+    } catch (err) {}
+  };
 
   const fetchMyOrders = async () => {
     try {
@@ -171,12 +186,7 @@ export const CustomerDashboard: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-950 text-white pb-16">
       <HeroBanner
-        metrics={{
-          completed: completedCount,
-          active: activeCount,
-          totalCustomers: orders.length > 0 ? 1 : 0,
-          totalRevenue: orders.reduce((acc, curr) => (curr.status === 'DELIVERED' ? acc + Number(curr.total_charge) : acc), 0),
-        }}
+        metrics={publicMetrics}
         onTrackOrder={(trk) => setTrackingNumberSearch(trk)}
       />
 

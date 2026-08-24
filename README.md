@@ -43,7 +43,24 @@ The platform provides real-time zone detection, dynamic volumetric weight pricin
 - **Zone & Area Management**: Define geographic bounding boxes (`min_lat`, `max_lat`, `min_lng`, `max_lng`) and bulk-import pincode mappings via CSV.
 - **Agent Workforce Provisioning**: Provision delivery agent accounts securely without public registration.
 - **Dispatch Control**: Manually assign agents, trigger spatial auto-assignment, or override status milestones with mandatory audit logging.
-- **Dynamic Analytics Dashboard**: Monitor company-wide status breakdowns, workforce status, delivery success rates, average delivery time, and revenue metrics.
+### 📊 Platform Metrics Model
+
+The platform structures metrics into two distinct security and operational tiers:
+
+1. **Universal / Public Metrics** (Visible to all users, agents, and logged-out visitors):
+   - **Completed Deliveries**: Total count of orders successfully delivered (`status = 'DELIVERED'`).
+   - **Active Shipments**: Count of shipments currently in active pipeline states (`CREATED`, `ASSIGNED`, `PICKED_UP`, `IN_TRANSIT`, `OUT_FOR_DELIVERY`).
+   - **Registered Customers**: Total registered customer user accounts in the database.
+   - **Delivery Success Rate**: Calculated delivery success ratio ($\frac{\text{Completed}}{\text{Completed} + \text{Failed}} \times 100$).
+
+2. **Admin-Only Operational Analytics** (Restricted strictly to Admin role):
+   - **Total Revenue**: Aggregate monetary charge of completed shipments ($\sum \text{total\_charge}$).
+   - **Total Orders**: Total number of orders created across all time.
+   - **Pending Orders**: Orders awaiting agent assignment.
+   - **Failed Deliveries**: Count of orders flagged with failed delivery attempts.
+   - **Agent Availability & Fleet Status**: Active agent status breakdown (`AVAILABLE`, `BUSY`, `OFFLINE`).
+
+All metrics are dynamically aggregated from actual database records in real-time. No business statistics or ratings are hardcoded or artificially incremented. Financial metrics such as total revenue are strictly protected behind backend RBAC authorization middleware (`requireRole(ADMIN)`).
 
 ---
 

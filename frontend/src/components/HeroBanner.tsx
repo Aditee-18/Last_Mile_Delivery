@@ -1,14 +1,12 @@
 import React, { useState } from 'react';
-import { Package, Users, Truck, DollarSign, Search, ShieldCheck, ArrowRight } from 'lucide-react';
+import { Package, Users, Truck, ShieldCheck, Search, ArrowRight, TrendingUp } from 'lucide-react';
 
 interface HeroBannerProps {
   metrics?: {
-    totalOrders?: number;
-    completed?: number;
-    active?: number;
-    totalCustomers?: number;
-    availableAgents?: number;
-    totalRevenue?: number;
+    completedDeliveries?: number;
+    activeShipments?: number;
+    registeredCustomers?: number;
+    deliverySuccessRate?: string;
   };
   onTrackOrder?: (trackingNumber: string) => void;
 }
@@ -79,7 +77,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({ metrics, onTrackOrder })
               <Package className="w-6 h-6" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-white">{metrics?.completed ?? 0}</p>
+              <p className="text-2xl font-bold text-white">{metrics?.completedDeliveries ?? 0}</p>
               <p className="text-xs text-slate-400 font-medium">Completed Deliveries</p>
             </div>
           </div>
@@ -89,7 +87,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({ metrics, onTrackOrder })
               <Truck className="w-6 h-6" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-white">{metrics?.active ?? 0}</p>
+              <p className="text-2xl font-bold text-white">{metrics?.activeShipments ?? 0}</p>
               <p className="text-xs text-slate-400 font-medium">Active Shipments</p>
             </div>
           </div>
@@ -99,18 +97,18 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({ metrics, onTrackOrder })
               <Users className="w-6 h-6" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-white">{metrics?.totalCustomers ?? 0}</p>
+              <p className="text-2xl font-bold text-white">{metrics?.registeredCustomers ?? 0}</p>
               <p className="text-xs text-slate-400 font-medium">Registered Customers</p>
             </div>
           </div>
 
           <div className="bg-slate-800/60 backdrop-blur-md border border-slate-700/60 p-4 rounded-2xl flex items-center space-x-4">
             <div className="p-3 bg-indigo-500/10 text-indigo-400 rounded-xl">
-              <DollarSign className="w-6 h-6" />
+              <TrendingUp className="w-6 h-6" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-white">₹{metrics?.totalRevenue ? metrics.totalRevenue.toLocaleString() : '0'}</p>
-              <p className="text-xs text-slate-400 font-medium">Total Revenue</p>
+              <p className="text-2xl font-bold text-white">{metrics?.deliverySuccessRate ?? '0%'}</p>
+              <p className="text-xs text-slate-400 font-medium">Delivery Success Rate</p>
             </div>
           </div>
         </div>

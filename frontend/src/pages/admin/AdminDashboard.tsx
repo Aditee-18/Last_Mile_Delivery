@@ -81,12 +81,14 @@ export const AdminDashboard: React.FC = () => {
       if (res.data.success) {
         const d = res.data.data;
         setMetrics({
-          totalOrders: d.deliveries.totalOrders,
-          completed: d.deliveries.completed,
-          active: d.deliveries.active,
-          totalCustomers: d.customers,
-          availableAgents: d.agents.statusBreakdown.available,
+          completedDeliveries: d.deliveries.completed,
+          activeShipments: d.deliveries.active,
+          registeredCustomers: d.customers,
+          deliverySuccessRate: d.performance.deliverySuccessRate,
           totalRevenue: d.deliveries.totalRevenue,
+          totalOrders: d.deliveries.totalOrders,
+          created: d.deliveries.created,
+          failed: d.deliveries.failed,
         });
       }
     } catch (err) {}
@@ -329,6 +331,33 @@ export const AdminDashboard: React.FC = () => {
       <HeroBanner metrics={metrics} onTrackOrder={(trk) => setTrackingNumberSearch(trk)} />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
+        {metrics && (
+          <div className="mb-8 border-b border-slate-800 pb-6">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4 flex items-center space-x-2">
+              <ShieldCheck className="w-4 h-4 text-blue-400" />
+              <span>Admin Operational Analytics (Restricted)</span>
+            </h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl">
+                <p className="text-xs text-slate-400 font-medium">Total Platform Revenue</p>
+                <p className="text-2xl font-bold text-emerald-400 mt-1">₹{metrics.totalRevenue ? metrics.totalRevenue.toLocaleString() : '0'}</p>
+              </div>
+              <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl">
+                <p className="text-xs text-slate-400 font-medium">Total Orders Placed</p>
+                <p className="text-2xl font-bold text-white mt-1">{metrics.totalOrders || 0}</p>
+              </div>
+              <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl">
+                <p className="text-xs text-slate-400 font-medium">Pending Orders (Unassigned)</p>
+                <p className="text-2xl font-bold text-amber-400 mt-1">{metrics.created || 0}</p>
+              </div>
+              <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl">
+                <p className="text-xs text-slate-400 font-medium">Failed Deliveries</p>
+                <p className="text-2xl font-bold text-red-400 mt-1">{metrics.failed || 0}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="flex border-b border-slate-800 space-x-4 mb-8">
           <button
             onClick={() => setActiveTab('orders')}

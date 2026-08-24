@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { query } from '../../config/database';
+import { query } from '../../config/database.js';
 
 export class PublicAnalyticsController {
   public static async getPublicMetrics(req: Request, res: Response): Promise<void> {
@@ -7,34 +7,32 @@ export class PublicAnalyticsController {
       const ordersRes = await query(`
         SELECT 
           COUNT(CASE WHEN status = 'DELIVERED' THEN 1 END)::int as completed_deliveries,
+          COUNT(CASE WHEN status IN ('CREATED', 'ASSIGNED', 'PICKED_UP', 'IN_TRANSIT', 'OUT_FOR_DELIVERY') THEN 1 END)::int as active_shipments,
           COUNT(CASE WHEN status = 'FAILED' THEN 1 END)::int as failed_deliveries
         FROM orders;
       `);
 
-      const zonesRes = await query(`SELECT COUNT(*)::int as total_zones FROM zones;`);
-      const areasRes = await query(`SELECT COUNT(*)::int as total_areas FROM areas;`);
-      const customersRes = await query(`SELECT COUNT(*)::int as total_customers FROM users WHERE role = 'CUSTOMER';`);
+      const customersRes = await query(`SELECT COUNT(*)::int as registered_customers FROM users WHERE role = 'CUSTOMER';`);
 
       const completed = ordersRes.rows[0].completed_deliveries || 0;
+      const active = ordersRes.rows[0].active_shipments || 0;
       const failed = ordersRes.rows[0].failed_deliveries || 0;
-      const totalAttempts = completed + failed;
+      const registeredCustomers = customersRes.rows[0].registered_customers || 0;
 
+      const totalFinished = completed + failed;
       let successRateStr = '0%';
-      if (totalAttempts > 0) {
-        const rate = Math.round((completed / totalAttempts) * 1000) / 10;
+      if (totalFinished > 0) {
+        const rate = Math.round((completed / totalFinished) * 1000) / 10;
         successRateStr = `${rate}%`;
-      } else {
-        successRateStr = 'N/A';
       }
 
       res.status(200).json({
         success: true,
         data: {
-          ordersDelivered: completed,
+          completedDeliveries: completed,
+          activeShipments: active,
+          registeredCustomers: registeredCustomers,
           deliverySuccessRate: successRateStr,
-          serviceableZones: zonesRes.rows[0].total_zones || 0,
-          serviceableAreas: areasRes.rows[0].total_areas || 0,
-          customersServed: customersRes.rows[0].total_customers || 0,
         },
       });
     } catch (err: any) {
