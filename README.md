@@ -236,6 +236,9 @@ To have status updates delivered directly to your real Gmail inbox (`aditee.sriv
 
 *(Note: Gmail requires a 16-character App Password generated via Google Account Security > 2-Step Verification > App Passwords).*
 
+> 💡 **Important Note on Email Delivery & Spam Filtering**:  
+> Automated system emails sent via SMTP may occasionally be filtered by email providers into the **Spam**, **Junk**, or **Promotions** tab (or **Sent** / **All Mail** folder if sending to your own email address). Always check your **Spam / Junk** folder if an automated status update email does not immediately appear in your Primary Inbox.
+
 ---
 
 ## ⚙️ Environment Configuration & Secrets
