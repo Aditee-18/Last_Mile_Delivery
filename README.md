@@ -305,7 +305,7 @@ npx tsx src/modules/agent/agent.test.ts
 
 ## 🌐 Live Hosted Application URLs
 
-- **Live Production Frontend**: `https://last-mile-delivery-12cs.vercel.app`
+- **Live Production Frontend**: `https://last-mile-delivery-f2cs.vercel.app`
 - **Live Production Backend API**: `https://last-mile-delivery-nu.vercel.app`
 - **PostgreSQL Database**: Supabase Cloud (Transaction Pooler Enabled)
 
