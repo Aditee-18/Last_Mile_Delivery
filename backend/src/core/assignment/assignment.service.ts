@@ -128,4 +128,60 @@ export class AssignmentService {
 
     return null;
   }
+
+  /**
+   * Pending Orders Auto-Assigner: Automatically assigns unassigned CREATED orders when agents become available
+   */
+  static async assignPendingOrders(): Promise<number> {
+    try {
+      const pendingOrdersRes = await query<{
+        id: string;
+        tracking_number: string;
+        pickup_zone_id: string;
+        pickup_lat: number | null;
+        pickup_lng: number | null;
+      }>(
+        `SELECT id, tracking_number, pickup_zone_id, pickup_lat, pickup_lng
+         FROM orders
+         WHERE status = 'CREATED' AND assigned_agent_id IS NULL
+         ORDER BY created_at ASC;`
+      );
+
+      let assignedCount = 0;
+
+      for (const order of pendingOrdersRes.rows) {
+        const coords = order.pickup_lat && order.pickup_lng ? { latitude: Number(order.pickup_lat), longitude: Number(order.pickup_lng) } : undefined;
+        const agent = await this.findNearestAvailableAgent(coords, order.pickup_zone_id);
+
+        if (agent) {
+          await query(
+            `UPDATE orders SET assigned_agent_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2;`,
+            [agent.agentUserId, order.id]
+          );
+
+          await query(
+            `UPDATE agent_profiles SET status = 'BUSY', updated_at = CURRENT_TIMESTAMP WHERE user_id = $1;`,
+            [agent.agentUserId]
+          );
+
+          const { OrderLifecycleService } = await import('../lifecycle/fsm.js');
+          const { UserRole, OrderStatus } = await import('../../types/order.enums.js');
+          await OrderLifecycleService.transitionStatus({
+            orderId: order.id,
+            newStatus: OrderStatus.ASSIGNED,
+            changedByUserId: agent.agentUserId,
+            actorRole: UserRole.ADMIN,
+            notes: `Auto-assigned to available agent: ${agent.agentName}`,
+          });
+
+          assignedCount++;
+        }
+      }
+
+      return assignedCount;
+    } catch (err) {
+      console.warn('Pending order auto-assignment warning:', err);
+      return 0;
+    }
+  }
 }

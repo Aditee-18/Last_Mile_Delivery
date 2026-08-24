@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { query } from '../../config/database.js';
 import { OrderLifecycleService } from '../../core/lifecycle/fsm.js';
 import { NotificationService } from '../../core/notifications/notification.service.js';
+import { AssignmentService } from '../../core/assignment/assignment.service.js';
 import { OrderStatus, UserRole, AgentStatus } from '../../types/order.enums.js';
 
 export class AgentController {
@@ -82,6 +83,10 @@ export class AgentController {
       if (result.rowCount === 0) {
         res.status(404).json({ success: false, error: 'Agent profile not found.' });
         return;
+      }
+
+      if (status === 'AVAILABLE') {
+        AssignmentService.assignPendingOrders().catch((err: any) => console.warn('Auto-assign warning:', err));
       }
 
       res.status(200).json({
@@ -185,11 +190,12 @@ export class AgentController {
         notes: notes || `Status updated to ${status} by delivery agent.`,
       });
 
-      // 2. If status is DELIVERED, set Agent profile status back to AVAILABLE
+      // 2. If status is DELIVERED, set Agent profile status back to AVAILABLE and trigger auto-assignment for queued orders
       if (status === OrderStatus.DELIVERED) {
         await query(`UPDATE agent_profiles SET status = 'AVAILABLE', updated_at = CURRENT_TIMESTAMP WHERE user_id = $1;`, [
           agentUserId,
         ]);
+        AssignmentService.assignPendingOrders().catch((err: any) => console.warn('Auto-assign warning:', err));
       }
 
       // 3. Emit Email & SMS Notification to Customer
@@ -250,10 +256,11 @@ export class AgentController {
         notes: `Delivery Attempt Failed: ${reasonNotes}`,
       });
 
-      // 2. Reset Agent Profile Status back to AVAILABLE
+      // 2. Reset Agent Profile Status back to AVAILABLE and trigger auto-assign for queued orders
       await query(`UPDATE agent_profiles SET status = 'AVAILABLE', updated_at = CURRENT_TIMESTAMP WHERE user_id = $1;`, [
         agentUserId,
       ]);
+      AssignmentService.assignPendingOrders().catch((err: any) => console.warn('Auto-assign warning:', err));
 
       // 3. Emit High-Priority Email & SMS Notification with Reschedule Link
       const custRes = await query<{ email: string; phone: string }>(`SELECT email, phone FROM users WHERE id = $1;`, [

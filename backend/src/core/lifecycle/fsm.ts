@@ -96,6 +96,29 @@ export class OrderLifecycleService {
       await client.query(historyInsertSql, historyValues);
 
       await client.query('COMMIT');
+
+      // 5. Automatically notify customer at EACH stage asynchronously
+      try {
+        const custInfoRes = await query<{ email: string; phone: string; tracking_number: string }>(
+          `SELECT u.email, u.phone, o.tracking_number FROM orders o JOIN users u ON o.customer_id = u.id WHERE o.id = $1;`,
+          [orderId]
+        );
+
+        if (custInfoRes.rowCount! > 0) {
+          const { email, phone, tracking_number } = custInfoRes.rows[0];
+          const { NotificationService } = await import('../notifications/notification.service.js');
+          NotificationService.notifyOrderStatusChange({
+            customerEmail: email,
+            customerPhone: phone,
+            trackingNumber: tracking_number,
+            newStatus: newStatus,
+            notes: notes || `Order ${tracking_number} status updated to ${newStatus.replace(/_/g, ' ')}.`,
+          });
+        }
+      } catch (notifyErr) {
+        console.warn('Status notification dispatch warning:', notifyErr);
+      }
+
       return { success: true, previousStatus, newStatus };
     } catch (error) {
       await client.query('ROLLBACK');
