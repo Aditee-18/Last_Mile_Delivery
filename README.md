@@ -290,3 +290,22 @@ npx tsx src/core/rate-engine/rate.test.ts
 # Run GPS & Agent Location Broadcast Tests
 npx tsx src/modules/agent/agent.test.ts
 ```
+
+---
+
+## 🔑 Evaluation Demo Credentials
+
+| Role | Email | Password | Access Scope |
+| :--- | :--- | :--- | :--- |
+| **System Admin** | `admin@delivery.com` | `password123` | Full Admin Control Plane (Zones, Rate Cards, Agents, Status Overrides). |
+| **Delivery Agent** | `agent.john@delivery.com` | `password123` | Operational Task Queue, Status Progressions (`PICKED_UP` \(\rightarrow\) `DELIVERED`), Failure Reporting. |
+| **Demo Customer** | `customer@delivery.com` | `password123` | Order Creation, Price Quotes, Live Tracking, Delivery Rescheduling. |
+
+---
+
+## 🌐 Live Hosted Application URLs
+
+- **Live Production Frontend**: `https://last-mile-delivery-12cs.vercel.app`
+- **Live Production Backend API**: `https://last-mile-delivery-nu.vercel.app`
+- **PostgreSQL Database**: Supabase Cloud (Transaction Pooler Enabled)
+
