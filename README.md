@@ -210,7 +210,22 @@ Every status transition appends an un-editable row to `order_status_history` sto
 - `order_id`
 - `previous_status` & `new_status`
 - `changed_by_user_id` & `actor_role` (`CUSTOMER`, `DELIVERY_AGENT`, `ADMIN`)
-- `location_lat`, `location_lng`, `notes`, and `created_at` timestamp.
+---
+
+## 📧 Notifications & Messaging Architecture (Email & SMS)
+
+The platform provides asynchronous, non-blocking customer status notifications on every delivery milestone (`PICKED_UP`, `IN_TRANSIT`, `OUT_FOR_DELIVERY`, `DELIVERED`, `FAILED`):
+
+### 1. Email Notification System
+- Powered by **Nodemailer** (`NotificationService.sendEmailNotification`).
+- Dispatches rich HTML emails with tracking milestone status, order number, and agent notes.
+- Operates asynchronously (`Promise.all`) so that notification delivery or SMTP network delays never slow down API response times.
+
+### 2. SMS System Status & Provider Disclosure
+- **SMS Integration Disclaimer**: Because no free public SMS gateway API exists in India, SMS notifications are implemented via a dedicated console logger module (`SMS_PROVIDER=CONSOLE`).
+- When order statuses change, the backend outputs structured SMS payloads:
+  `📱 [SMS NOTIFICATION] To: +917982889509 | Msg: "[LastMile] Order TRK-1001 update: Status is now OUT FOR DELIVERY"`
+- Optional production SMS gateways (such as Twilio) are supported via configuration variables (`TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`).
 
 ---
 
