@@ -227,6 +227,15 @@ The platform provides asynchronous, non-blocking customer status notifications o
   `📱 [SMS NOTIFICATION] To: +917982889509 | Msg: "[LastMile] Order TRK-1001 update: Status is now OUT FOR DELIVERY"`
 - Optional production SMS gateways (such as Twilio) are supported via configuration variables (`TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`).
 
+### 3. Live Gmail Inbox Email Setup Guide
+To have status updates delivered directly to your real Gmail inbox (`aditee.srivastava2004@gmail.com`), configure these environment variables in your **Vercel Backend Project**:
+- `SMTP_HOST` = `smtp.gmail.com`
+- `SMTP_PORT` = `587`
+- `SMTP_USER` = `your_gmail_address@gmail.com`
+- `SMTP_PASS` = `your_16_digit_gmail_app_password`
+
+*(Note: Gmail requires a 16-character App Password generated via Google Account Security > 2-Step Verification > App Passwords).*
+
 ---
 
 ## ⚙️ Environment Configuration & Secrets
