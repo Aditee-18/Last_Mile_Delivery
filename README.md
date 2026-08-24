@@ -1,0 +1,292 @@
+# 🚚 Last-Mile Delivery Management Platform
+
+An enterprise-grade, full-stack **Last-Mile Delivery Management System** built with **Node.js, Express, PostgreSQL, React, TypeScript, and Tailwind CSS**.
+
+The platform provides real-time zone detection, dynamic volumetric weight pricing, spatial agent auto-assignment, an immutable tracking history ledger, role-separated analytics dashboards, and server-controlled security boundaries.
+
+---
+
+## 📋 Table of Contents
+- [Features & Capabilities](#-features--capabilities)
+- [System Architecture & Tech Stack](#-system-architecture--tech-stack)
+- [Security Architecture & Role Model](#-security-architecture--role-model)
+- [Database Schema & Data Modeling](#-database-schema--data-modeling)
+- [Rate Calculation Engine Logic](#-rate-calculation-engine-logic)
+- [Zone Detection Approach](#-zone-detection-approach)
+- [Spatial Auto-Assignment Engine](#-spatial-auto-assignment-engine)
+- [Order Status Lifecycle & Immutable Ledger](#-order-status-lifecycle--immutable-ledger)
+- [Failed Delivery & Rescheduling Flow](#-failed-delivery--rescheduling-flow)
+- [Environment Configuration & Secrets](#-environment-configuration--secrets)
+- [Quickstart & Setup Instructions](#-quickstart--setup-instructions)
+- [API Documentation Reference](#-api-documentation-reference)
+- [Testing & Security Verification Suite](#-testing--security-verification-suite)
+
+---
+
+## ✨ Features & Capabilities
+
+### 👤 Customer Features
+- **Instant Pre-Confirmation Price Quotes**: Calculate transparent delivery charges based on package dimensions, weight, pickup/drop pincodes, and order type before booking.
+- **Order Placement**: Place B2B or B2C shipments with Prepaid or Cash-on-Delivery (COD) payment modes.
+- **Live Order Tracking**: Track active shipments using a unique tracking code (`TRK-...`) with an immutable event timeline.
+- **Failed Delivery Rescheduling**: Select new delivery dates and trigger automatic agent reassignment when a delivery attempt fails.
+
+### 🚚 Delivery Agent Features
+- **Operational Console**: View assigned task queue with customer details, pickup/drop addresses, package specifications, and call links.
+- **Duty Availability Selector**: Toggle live availability status (`AVAILABLE`, `BUSY`, `OFFLINE`).
+- **GPS Location Telemetry**: Broadcast live latitude and longitude coordinates to PostgreSQL.
+- **Milestone Progression**: Advance order status step-by-step (`PICKED_UP` \(\rightarrow\) `IN_TRANSIT` \(\rightarrow\) `OUT_FOR_DELIVERY` \(\rightarrow\) `DELIVERED`).
+- **Delivery Failure Flagging**: Record failure reasons (e.g., recipient unavailable) and notify customers to reschedule.
+
+### 🛡️ Admin Control Plane
+- **Interactive Data Table Rate Cards**: Configure dynamic base fares, weight slabs, per-kg rates, and minimum guaranteed charges for `B2B Intra`, `B2B Inter`, `B2C Intra`, and `B2C Inter` combinations.
+- **Zone & Area Management**: Define geographic bounding boxes (`min_lat`, `max_lat`, `min_lng`, `max_lng`) and bulk-import pincode mappings via CSV.
+- **Agent Workforce Provisioning**: Provision delivery agent accounts securely without public registration.
+- **Dispatch Control**: Manually assign agents, trigger spatial auto-assignment, or override status milestones with mandatory audit logging.
+- **Dynamic Analytics Dashboard**: Monitor company-wide status breakdowns, workforce status, delivery success rates, average delivery time, and revenue metrics.
+
+---
+
+## 🏗️ System Architecture & Tech Stack
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                             REACT + TYPESCRIPT FRONTEND                          │
+│                   (Tailwind CSS, Vite, Axios, Lucide Icons)                     │
+└──────────────────────────────────────┬──────────────────────────────────────────┘
+                                       │ REST API (JSON)
+                                       ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                             NODE.JS + EXPRESS BACKEND                           │
+│     (JWT Middleware, Zod Validation, RBAC Guards, Nodemailer, FSM Engine)       │
+└──────────────────────────────────────┬──────────────────────────────────────────┘
+                                       │ SQL Queries / PostGIS Spatial Functions
+                                       ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                           POSTGRESQL RELATIONAL DATABASE                        │
+│   (Users, Zones, Areas, Rate Cards, Surcharges, Orders, Immutable History)      │
+└─────────────────────────────────────────────────────────────────────────────────┘
+```
+
+- **Backend**: Node.js, Express, TypeScript, `pg` (PostgreSQL client), Zod, JWT (`jsonwebtoken`), bcryptjs, Nodemailer.
+- **Frontend**: React 18, TypeScript, Tailwind CSS, Vite, Axios, React Router v6, Lucide React icons.
+- **Database**: PostgreSQL 14+ with PostGIS / Bounding Box spatial support.
+
+---
+
+## 🔒 Security Architecture & Role Model
+
+The application enforces a **Server-Controlled Role Model** where user permissions are determined strictly by the database and signed JWT token claims.
+
+### 1. Permissions Matrix
+
+| Role | Public Registration? | Creation Mechanism | Access Scope & Permissions |
+| :--- | :---: | :--- | :--- |
+| **`CUSTOMER`** | ✅ Yes | Self-registration via `/register` | Create orders, view price quotes, track personal orders, reschedule failed deliveries. |
+| **`DELIVERY_AGENT`** | ❌ No | Provisioned exclusively by Admin (`POST /api/admin/agents/create`) | View assigned task queue, update GPS location & availability, advance FSM status, report failure. |
+| **`ADMIN`** | ❌ No | Idempotent seed script (`npm run db:seed`) | Full control plane: Manage zones/areas/rate cards, provision agents, manual/auto-assign, status override. |
+
+### 2. Privilege Escalation Attack Prevention
+- Public registration (`POST /api/auth/register`) accepts only `name`, `email`, `phone`, and `password`.
+- The backend explicitly constructs user creation with `role = UserRole.CUSTOMER`.
+- Any client-supplied `role` parameter in the HTTP payload (e.g., `"role": "admin"`) is strictly ignored and stripped on the server.
+
+### 3. Backend Authorization Boundary
+- **`401 Unauthorized`**: Returned when no valid Bearer JWT token is provided.
+- **`403 Forbidden`**: Returned when an authenticated user attempts to access an endpoint outside their role scope (e.g., a Customer calling an Admin endpoint).
+
+---
+
+## 🗄️ Database Schema & Data Modeling
+
+The database structure is defined in `backend/src/db/schema.sql`:
+
+```text
+users (id, name, email, password_hash, phone, role, created_at)
+  ├── agent_profiles (id, user_id, status, current_lat, current_lng, assigned_zone_id)
+  └── orders (id, tracking_number, customer_id, pickup_address, drop_address,
+              pickup_zone_id, drop_zone_id, length_cm, width_cm, height_cm,
+              actual_weight_kg, volumetric_weight_kg, chargeable_weight_kg,
+              order_type, payment_type, base_charge, weight_charge, cod_surcharge, total_charge,
+              status, assigned_agent_id, rescheduled_date)
+        └── order_status_history (id, order_id, previous_status, new_status,
+                                  changed_by_user_id, actor_role, location_lat, location_lng, notes, created_at)
+
+zones (id, name, code, min_lat, max_lat, min_lng, max_lng)
+  └── areas (id, name, pincode, zone_id)
+
+rate_cards (id, order_type, is_intra_zone, base_fare, base_weight_kg, per_kg_rate, min_charge)
+surcharge_configs (id, order_type, surcharge_type, surcharge_value)
+```
+
+---
+
+## 🧮 Rate Calculation Engine Logic
+
+No pricing values are hardcoded in the application. Pricing is calculated dynamically on order placement and pre-confirmation quote requests (`POST /api/customer/orders/quote`).
+
+### Step-by-Step Calculation Formula
+
+1. **Volumetric Weight Calculation**:
+   $$\text{volumetricWeightKg} = \frac{\text{Length (cm)} \times \text{Width (cm)} \times \text{Height (cm)}}{5000}$$
+
+2. **Billable Chargeable Weight**:
+   $$\text{chargeableWeightKg} = \max(\text{actualWeightKg}, \text{volumetricWeightKg})$$
+
+3. **Rate Card Selection**:
+   The engine queries `rate_cards` matching:
+   $$\text{order\_type} = \text{B2B/B2C} \quad \text{AND} \quad \text{is\_intra\_zone} = (\text{pickupZoneId} == \text{dropZoneId})$$
+
+4. **Freight Base & Extra Weight Calculation**:
+   $$\text{extraWeightKg} = \max(0, \text{chargeableWeightKg} - \text{baseWeightKg})$$
+   $$\text{weightCharge} = \text{extraWeightKg} \times \text{perKgRate}$$
+   $$\text{baseFreightSum} = \max(\text{minCharge}, \text{baseFare} + \text{weightCharge})$$
+
+5. **COD Surcharge Application**:
+   If `paymentType == 'COD'`, the engine applies the admin-configured surcharge (`FLAT` fee for B2C, `PERCENTAGE` of freight for B2B). If `PREPAID`, `codSurcharge = 0`.
+
+6. **Total Delivery Charge**:
+   $$\text{totalCharge} = \text{baseFreightSum} + \text{codSurcharge}$$
+
+---
+
+## 🗺️ Zone Detection Approach
+
+1. **Bounding Box Spatial Detection**: The backend tests geographic coordinates (`pickupLat`, `pickupLng`) against zone latitude/longitude bounds (`min_lat <= lat <= max_lat AND min_lng <= lng <= max_lng`).
+2. **Pincode Fallback Mapping**: If coordinates are absent or outside bounds, the backend queries the `areas` table to resolve `pincode -> zone_id`.
+3. **Intra vs. Inter-Zone Determination**:
+   $$\text{isIntraZone} = (\text{pickupZoneId} == \text{dropZoneId})$$
+
+---
+
+## 🤖 Spatial Auto-Assignment Engine
+
+When an order is created or rescheduled, the spatial assignment algorithm (`AssignmentService.findNearestAvailableAgent`):
+1. Filters agents with `status = 'AVAILABLE'` assigned to the pickup zone or current active fleet.
+2. Calculates spherical distance between pickup coordinates and agent `current_lat`/`current_lng` using the **Haversine Formula**:
+   $$d = 2r \arcsin \left( \sqrt{\sin^2\left(\frac{\Delta \phi}{2}\right) + \cos(\phi_1)\cos(\phi_2)\sin^2\left(\frac{\Delta \lambda}{2}\right)} \right)$$
+3. Assigns the nearest eligible agent, updates the order status to `ASSIGNED`, and updates the agent status to `BUSY`.
+
+---
+
+## 🔄 Order Status Lifecycle & Immutable Ledger
+
+The backend implements a **Finite State Machine (FSM)** (`OrderLifecycleService`):
+
+$$\text{CREATED} \longrightarrow \text{ASSIGNED} \longrightarrow \text{PICKED\_UP} \longrightarrow \text{IN\_TRANSIT} \longrightarrow \text{OUT\_FOR\_DELIVERY} \longrightarrow \text{DELIVERED}$$
+
+If delivery fails:
+$$\text{OUT\_FOR\_DELIVERY} \longrightarrow \text{FAILED} \longrightarrow \text{RESCHEDULED} \longrightarrow \text{ASSIGNED}$$
+
+### Immutable Audit History
+Every status transition appends an un-editable row to `order_status_history` storing:
+- `order_id`
+- `previous_status` & `new_status`
+- `changed_by_user_id` & `actor_role` (`CUSTOMER`, `DELIVERY_AGENT`, `ADMIN`)
+- `location_lat`, `location_lng`, `notes`, and `created_at` timestamp.
+
+---
+
+## ⚙️ Environment Configuration & Secrets
+
+Create a `.env` file in `backend/`:
+
+```env
+PORT=5000
+NODE_ENV=development
+
+# Database Connection
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=postgres
+DB_NAME=last_mile_delivery
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/last_mile_delivery
+
+# JWT Security Secrets
+JWT_SECRET=super_secret_jwt_key_last_mile_delivery_2026
+JWT_EXPIRES_IN=7d
+
+# Initial Admin Credentials (Used by seed script)
+ADMIN_EMAIL=admin@delivery.com
+ADMIN_PASSWORD=password123
+
+# Nodemailer Email Configuration
+SMTP_HOST=smtp.mailtrap.io
+SMTP_PORT=2525
+SMTP_USER=mock_user
+SMTP_PASS=mock_pass
+FROM_EMAIL=notifications@lastmiledelivery.com
+```
+
+---
+
+## 🚀 Quickstart & Setup Instructions
+
+### 1. Database Setup & Migration
+```bash
+cd backend
+npm install
+npm run db:migrate
+npm run db:seed
+```
+
+### 2. Run Backend API Server
+```bash
+cd backend
+npm run dev
+```
+*Backend active at http://localhost:5000*
+
+### 3. Run Frontend Web Application
+```bash
+cd frontend
+npm install
+npm run dev
+```
+*Frontend active at http://localhost:3000*
+
+---
+
+## 📚 API Documentation Reference
+
+| Method | Endpoint | Access Role | Description |
+| :--- | :--- | :---: | :--- |
+| `POST` | `/api/auth/register` | Public | Register customer account (forces `role = CUSTOMER`). |
+| `POST` | `/api/auth/login` | Public | Authenticate user & receive signed JWT token. |
+| `GET` | `/api/analytics/public` | Public | Get public trust metrics (deliveries, success rate, zones). |
+| `POST` | `/api/customer/orders/quote` | Customer | Pre-confirmation price quote calculation. |
+| `POST` | `/api/customer/orders/create` | Customer | Book new order & trigger spatial auto-assignment. |
+| `GET` | `/api/customer/orders` | Customer | List logged-in customer's order history. |
+| `POST` | `/api/customer/orders/:id/reschedule` | Customer | Reschedule failed delivery attempt. |
+| `GET` | `/api/customer/analytics` | Customer | Get customer order statistics. |
+| `GET` | `/api/agent/profile` | Agent | View agent status & delivery stats. |
+| `GET` | `/api/agent/orders` | Agent | View assigned task queue. |
+| `PUT` | `/api/agent/location` | Agent | Broadcast GPS coordinates & duty availability. |
+| `PUT` | `/api/agent/orders/:id/status` | Agent | Advance order milestone (`PICKED_UP` \(\rightarrow\) `DELIVERED`). |
+| `PUT` | `/api/agent/orders/:id/fail` | Agent | Report delivery failure & notify customer. |
+| `GET` | `/api/admin/analytics/overview` | Admin | Get platform-wide operational & revenue metrics. |
+| `POST` | `/api/admin/agents/create` | Admin | Provision delivery agent account. |
+| `PUT` | `/api/admin/rate-cards/:id` | Admin | Update dynamic rate card configuration. |
+| `POST` | `/api/admin/zones` | Admin | Create delivery zone with lat/lng bounding box. |
+| `POST` | `/api/admin/areas/bulk-csv` | Admin | Bulk-import pincode to zone mappings via CSV. |
+| `PUT` | `/api/admin/orders/:id/override-status` | Admin | Override order status with audit logging. |
+
+---
+
+## 🧪 Testing & Security Verification Suite
+
+Run automated backend security and calculation verification scripts:
+
+```bash
+cd backend
+
+# Run Auth Security & Privilege Escalation Tests
+npx tsx src/modules/auth/auth.test.ts
+
+# Run Mathematical Rate Engine Tests
+npx tsx src/core/rate-engine/rate.test.ts
+
+# Run GPS & Agent Location Broadcast Tests
+npx tsx src/modules/agent/agent.test.ts
+```
