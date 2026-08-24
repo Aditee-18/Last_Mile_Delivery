@@ -65,10 +65,6 @@ export const CustomerDashboard: React.FC = () => {
       alert('Please select a payment type.');
       return;
     }
-    if (!bookingData.pickupPincode || !bookingData.dropPincode) {
-      alert('Please enter valid pickup and drop pincodes.');
-      return;
-    }
     const lengthCm = Number(bookingData.lengthCm);
     const widthCm = Number(bookingData.widthCm);
     const heightCm = Number(bookingData.heightCm);
@@ -92,8 +88,8 @@ export const CustomerDashboard: React.FC = () => {
         actualWeightKg,
         orderType: bookingData.orderType as OrderType,
         paymentType: bookingData.paymentType as PaymentType,
-        pickupPincode: bookingData.pickupPincode,
-        dropPincode: bookingData.dropPincode,
+        pickupPincode: bookingData.pickupPincode.trim() || undefined,
+        dropPincode: bookingData.dropPincode.trim() || undefined,
       });
       if (res.data.success) {
         setQuote(res.data.data);
@@ -138,6 +134,8 @@ export const CustomerDashboard: React.FC = () => {
         actualWeightKg,
         orderType: bookingData.orderType as OrderType,
         paymentType: bookingData.paymentType as PaymentType,
+        pickupPincode: bookingData.pickupPincode.trim() || undefined,
+        dropPincode: bookingData.dropPincode.trim() || undefined,
       });
       alert(`Order Booked Successfully! Tracking Code: ${res.data.data.trackingNumber}`);
       setShowBookingModal(false);

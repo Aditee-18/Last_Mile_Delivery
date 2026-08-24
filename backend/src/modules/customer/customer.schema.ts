@@ -8,8 +8,8 @@ export const orderQuoteSchema = z.object({
   actualWeightKg: z.number().positive('Actual weight must be positive.'),
   orderType: z.nativeEnum(OrderType),
   paymentType: z.nativeEnum(PaymentType),
-  pickupPincode: z.string().length(6, 'Pickup pincode must be 6 digits.').optional(),
-  dropPincode: z.string().length(6, 'Drop pincode must be 6 digits.').optional(),
+  pickupPincode: z.string().optional(),
+  dropPincode: z.string().optional(),
 });
 
 export const createOrderSchema = z.object({
@@ -21,8 +21,8 @@ export const createOrderSchema = z.object({
   actualWeightKg: z.number().positive('Actual weight must be positive.'),
   orderType: z.nativeEnum(OrderType),
   paymentType: z.nativeEnum(PaymentType),
-  pickupPincode: z.string().length(6, 'Pickup pincode must be 6 digits.').optional(),
-  dropPincode: z.string().length(6, 'Drop pincode must be 6 digits.').optional(),
+  pickupPincode: z.string().optional(),
+  dropPincode: z.string().optional(),
   pickupLat: z.number().optional(),
   pickupLng: z.number().optional(),
   dropLat: z.number().optional(),
