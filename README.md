@@ -7,7 +7,8 @@ The platform provides real-time zone detection, dynamic volumetric weight pricin
 ---
 
 ## 📋 Table of Contents
-- [Features & Capabilities](#-features--capabilities)
+- [User Roles & Dashboard Functionality Breakdown](#-user-roles--dashboard-functionality-breakdown)
+- [Platform Metrics Model](#-platform-metrics-model)
 - [System Architecture & Tech Stack](#-system-architecture--tech-stack)
 - [Security Architecture & Role Model](#-security-architecture--role-model)
 - [Database Schema & Data Modeling](#-database-schema--data-modeling)
@@ -20,6 +21,8 @@ The platform provides real-time zone detection, dynamic volumetric weight pricin
 - [Quickstart & Setup Instructions](#-quickstart--setup-instructions)
 - [API Documentation Reference](#-api-documentation-reference)
 - [Testing & Security Verification Suite](#-testing--security-verification-suite)
+- [Evaluation Demo Credentials](#-evaluation-demo-credentials)
+- [Live Hosted Application URLs](#-live-hosted-application-urls)
 
 ---
 
@@ -38,7 +41,7 @@ The platform provides role-separated dashboards tailored specifically to the ope
 - **Personalized Header & Availability Toggle**: View duty status and toggle between `AVAILABLE`, `BUSY`, and `OFFLINE`.
 - **GPS Telemetry Broadcast**: Click `[ GPS ]` button to capture device coordinates via browser Geolocation API and send updates to PostgreSQL (`PUT /api/agent/location`).
 - **Operational Task Queue**: Scoped strictly to orders assigned to the logged-in agent (`assigned_agent_id = req.user.userId`).
-- **Milestone Advancement**: Step-by-step order lifecycle progression (`PICKED_UP` \(\rightarrow\) `IN_TRANSIT` \(\rightarrow\) `OUT_FOR_DELIVERY` \(\rightarrow\) `DELIVERED`).
+- **Milestone Advancement**: Step-by-step order lifecycle progression (`PICKED_UP` ➔ `IN_TRANSIT` ➔ `OUT_FOR_DELIVERY` ➔ `DELIVERED`).
 - **Failure Reporting**: Flag failed delivery attempts with mandatory reason notes, transitioning order to `FAILED` and notifying customer.
 
 ### 3. Admin Control Plane (`/admin/dashboard`)
@@ -49,7 +52,8 @@ The platform provides role-separated dashboards tailored specifically to the ope
 - **Restricted Financial & Operational Analytics**: View platform revenue, total orders, pending orders, and agent status breakdowns.
 
 ---
-### 📊 Platform Metrics Model
+
+## 📊 Platform Metrics Model
 
 The platform structures metrics into two distinct security and operational tiers:
 
@@ -57,10 +61,10 @@ The platform structures metrics into two distinct security and operational tiers
    - **Completed Deliveries**: Total count of orders successfully delivered (`status = 'DELIVERED'`).
    - **Active Shipments**: Count of shipments currently in active pipeline states (`CREATED`, `ASSIGNED`, `PICKED_UP`, `IN_TRANSIT`, `OUT_FOR_DELIVERY`).
    - **Registered Customers**: Total registered customer user accounts in the database.
-   - **Delivery Success Rate**: Calculated delivery success ratio ($\frac{\text{Completed}}{\text{Completed} + \text{Failed}} \times 100$).
+   - **Delivery Success Rate**: Calculated delivery success ratio `(Completed / (Completed + Failed)) * 100`.
 
 2. **Admin-Only Operational Analytics** (Restricted strictly to Admin role):
-   - **Total Revenue**: Aggregate monetary charge of completed shipments ($\sum \text{total\_charge}$).
+   - **Total Revenue**: Aggregate monetary charge of completed shipments (`SUM(total_charge)`).
    - **Total Orders**: Total number of orders created across all time.
    - **Pending Orders**: Orders awaiting agent assignment.
    - **Failed Deliveries**: Count of orders flagged with failed delivery attempts.
@@ -150,26 +154,26 @@ No pricing values are hardcoded in the application. Pricing is calculated dynami
 
 ### Step-by-Step Calculation Formula
 
-1. **Volumetric Weight Calculation**:
-   $$\text{volumetricWeightKg} = \frac{\text{Length (cm)} \times \text{Width (cm)} \times \text{Height (cm)}}{5000}$$
+1. **Volumetric Weight Calculation**:  
+   `volumetricWeightKg = (Length (cm) * Width (cm) * Height (cm)) / 5000`
 
-2. **Billable Chargeable Weight**:
-   $$\text{chargeableWeightKg} = \max(\text{actualWeightKg}, \text{volumetricWeightKg})$$
+2. **Billable Chargeable Weight**:  
+   `chargeableWeightKg = max(actualWeightKg, volumetricWeightKg)`
 
-3. **Rate Card Selection**:
-   The engine queries `rate_cards` matching:
-   $$\text{order\_type} = \text{B2B/B2C} \quad \text{AND} \quad \text{is\_intra\_zone} = (\text{pickupZoneId} == \text{dropZoneId})$$
+3. **Rate Card Selection**:  
+   The engine queries `rate_cards` matching:  
+   `order_type IN ('B2B', 'B2C') AND is_intra_zone = (pickupZoneId == dropZoneId)`
 
-4. **Freight Base & Extra Weight Calculation**:
-   $$\text{extraWeightKg} = \max(0, \text{chargeableWeightKg} - \text{baseWeightKg})$$
-   $$\text{weightCharge} = \text{extraWeightKg} \times \text{perKgRate}$$
-   $$\text{baseFreightSum} = \max(\text{minCharge}, \text{baseFare} + \text{weightCharge})$$
+4. **Freight Base & Extra Weight Calculation**:  
+   `extraWeightKg = max(0, chargeableWeightKg - baseWeightKg)`  
+   `weightCharge = extraWeightKg * perKgRate`  
+   `baseFreightSum = max(minCharge, baseFare + weightCharge)`
 
-5. **COD Surcharge Application**:
+5. **COD Surcharge Application**:  
    If `paymentType == 'COD'`, the engine applies the admin-configured surcharge (`FLAT` fee for B2C, `PERCENTAGE` of freight for B2B). If `PREPAID`, `codSurcharge = 0`.
 
-6. **Total Delivery Charge**:
-   $$\text{totalCharge} = \text{baseFreightSum} + \text{codSurcharge}$$
+6. **Total Delivery Charge**:  
+   `totalCharge = baseFreightSum + codSurcharge`
 
 ---
 
@@ -177,8 +181,8 @@ No pricing values are hardcoded in the application. Pricing is calculated dynami
 
 1. **Bounding Box Spatial Detection**: The backend tests geographic coordinates (`pickupLat`, `pickupLng`) against zone latitude/longitude bounds (`min_lat <= lat <= max_lat AND min_lng <= lng <= max_lng`).
 2. **Pincode Fallback Mapping**: If coordinates are absent or outside bounds, the backend queries the `areas` table to resolve `pincode -> zone_id`.
-3. **Intra vs. Inter-Zone Determination**:
-   $$\text{isIntraZone} = (\text{pickupZoneId} == \text{dropZoneId})$$
+3. **Intra vs. Inter-Zone Determination**:  
+   `isIntraZone = (pickupZoneId == dropZoneId)`
 
 ---
 
@@ -186,8 +190,8 @@ No pricing values are hardcoded in the application. Pricing is calculated dynami
 
 When an order is created or rescheduled, the spatial assignment algorithm (`AssignmentService.findNearestAvailableAgent`):
 1. Filters agents with `status = 'AVAILABLE'` assigned to the pickup zone or current active fleet.
-2. Calculates spherical distance between pickup coordinates and agent `current_lat`/`current_lng` using the **Haversine Formula**:
-   $$d = 2r \arcsin \left( \sqrt{\sin^2\left(\frac{\Delta \phi}{2}\right) + \cos(\phi_1)\cos(\phi_2)\sin^2\left(\frac{\Delta \lambda}{2}\right)} \right)$$
+2. Calculates spherical distance between pickup coordinates and agent `current_lat`/`current_lng` using the **Haversine Formula**:  
+   `d = 2 * R * arcsin(sqrt(sin^2(dLat/2) + cos(lat1) * cos(lat2) * sin^2(dLng/2)))`
 3. Assigns the nearest eligible agent, updates the order status to `ASSIGNED`, and updates the agent status to `BUSY`.
 
 ---
@@ -196,10 +200,10 @@ When an order is created or rescheduled, the spatial assignment algorithm (`Assi
 
 The backend implements a **Finite State Machine (FSM)** (`OrderLifecycleService`):
 
-$$\text{CREATED} \longrightarrow \text{ASSIGNED} \longrightarrow \text{PICKED\_UP} \longrightarrow \text{IN\_TRANSIT} \longrightarrow \text{OUT\_FOR\_DELIVERY} \longrightarrow \text{DELIVERED}$$
+`CREATED` ➔ `ASSIGNED` ➔ `PICKED_UP` ➔ `IN_TRANSIT` ➔ `OUT_FOR_DELIVERY` ➔ `DELIVERED`
 
-If delivery fails:
-$$\text{OUT\_FOR\_DELIVERY} \longrightarrow \text{FAILED} \longrightarrow \text{RESCHEDULED} \longrightarrow \text{ASSIGNED}$$
+If delivery fails:  
+`OUT_FOR_DELIVERY` ➔ `FAILED` ➔ `RESCHEDULED` ➔ `ASSIGNED`
 
 ### Immutable Audit History
 Every status transition appends an un-editable row to `order_status_history` storing:
@@ -286,7 +290,7 @@ npm run dev
 | `GET` | `/api/agent/profile` | Agent | View agent status & delivery stats. |
 | `GET` | `/api/agent/orders` | Agent | View assigned task queue. |
 | `PUT` | `/api/agent/location` | Agent | Broadcast GPS coordinates & duty availability. |
-| `PUT` | `/api/agent/orders/:id/status` | Agent | Advance order milestone (`PICKED_UP` \(\rightarrow\) `DELIVERED`). |
+| `PUT` | `/api/agent/orders/:id/status` | Agent | Advance order milestone (`PICKED_UP` ➔ `DELIVERED`). |
 | `PUT` | `/api/agent/orders/:id/fail` | Agent | Report delivery failure & notify customer. |
 | `GET` | `/api/admin/analytics/overview` | Admin | Get platform-wide operational & revenue metrics. |
 | `POST` | `/api/admin/agents/create` | Admin | Provision delivery agent account. |
@@ -321,7 +325,7 @@ npx tsx src/modules/agent/agent.test.ts
 | Role | Email | Password | Access Scope |
 | :--- | :--- | :--- | :--- |
 | **System Admin** | `admin@delivery.com` | `password123` | Full Admin Control Plane (Zones, Rate Cards, Agents, Status Overrides). |
-| **Delivery Agent** | `agent.john@delivery.com` | `password123` | Operational Task Queue, Status Progressions (`PICKED_UP` \(\rightarrow\) `DELIVERED`), Failure Reporting. |
+| **Delivery Agent** | `agent.john@delivery.com` | `password123` | Operational Task Queue, Status Progressions (`PICKED_UP` ➔ `DELIVERED`), Failure Reporting. |
 | **Demo Customer** | `customer@delivery.com` | `password123` | Order Creation, Price Quotes, Live Tracking, Delivery Rescheduling. |
 
 ---
@@ -331,4 +335,3 @@ npx tsx src/modules/agent/agent.test.ts
 - **Live Production Frontend**: `https://last-mile-delivery-f2cs.vercel.app`
 - **Live Production Backend API**: `https://last-mile-delivery-nu.vercel.app`
 - **PostgreSQL Database**: Supabase Cloud (Transaction Pooler Enabled)
-
