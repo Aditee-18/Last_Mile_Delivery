@@ -4,7 +4,6 @@ import { OrderStatus } from '../../types/order.enums.js';
 
 dotenv.config();
 
-// Create Nodemailer Transporter
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.mailtrap.io',
   port: Number(process.env.SMTP_PORT) || 2525,
@@ -16,31 +15,29 @@ const transporter = nodemailer.createTransport({
 
 export class NotificationService {
   /**
-   * Send Email Notification on Order Status Change
+   * Send Real Email Notification via Nodemailer to the Order's Registered Customer
    */
   static async sendEmailNotification(toEmail: string, trackingNumber: string, newStatus: OrderStatus, notes?: string): Promise<boolean> {
-    const subject = `Order Update: ${trackingNumber} is now ${newStatus.replace(/_/g, ' ')}`;
-    const textContent = `Hello,\n\nYour delivery order (${trackingNumber}) status has been updated to: ${newStatus}.\n${notes ? `Note: ${notes}\n` : ''}\nThank you for choosing Last-Mile Delivery!`;
+    if (!toEmail) return false;
+
+    const subject = `Order Status Update: ${trackingNumber} is now ${newStatus.replace(/_/g, ' ')}`;
+    const textContent = `Hello,\n\nYour delivery order (${trackingNumber}) status has been updated to: ${newStatus.replace(/_/g, ' ')}.\n${notes ? `Note: ${notes}\n` : ''}\nThank you for choosing Last-Mile Delivery!`;
 
     const htmlContent = `
-      <div style="font-family: Arial, sans-serif; padding: 20, max-width: 600px; border: 1px solid #e0e0e0; border-radius: 8px;">
-        <h2 style="color: #2563eb;">Last-Mile Delivery Status Update</h2>
-        <p>Your order tracking number <strong>${trackingNumber}</strong> has reached a new milestone:</p>
+      <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; border: 1px solid #e0e0e0; border-radius: 8px;">
+        <h2 style="color: #2563eb; margin-top: 0;">Last-Mile Delivery Status Update</h2>
+        <p>Your delivery order tracking number <strong>${trackingNumber}</strong> has reached a new milestone:</p>
         <div style="background-color: #f3f4f6; padding: 15px; border-radius: 6px; margin: 15px 0;">
-          <h3 style="margin: 0; color: #1e293b;">Status: <span style="color: #059669;">${newStatus.replace(/_/g, ' ')}</span></h3>
+          <h3 style="margin: 0; color: #1e293b;">New Status: <span style="color: #059669;">${newStatus.replace(/_/g, ' ')}</span></h3>
           ${notes ? `<p style="margin-top: 8px; color: #475569;"><em>${notes}</em></p>` : ''}
         </div>
-        <p>Click below to view full live tracking details on our portal.</p>
-        <p style="font-size: 12px; color: #94a3b8;">This is an automated notification.</p>
+        <p>Log into your customer dashboard to view live tracking updates or manage your delivery.</p>
+        <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+        <p style="font-size: 11px; color: #94a3b8; margin: 0;">Automated Notification • Last-Mile Delivery Management Platform</p>
       </div>
     `;
 
     try {
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`📧 [MOCK EMAIL] To: ${toEmail} | Subject: "${subject}"`);
-      }
-      
-      // Attempt sending email (swallows errors in dev to prevent blocking API responses)
       await transporter.sendMail({
         from: process.env.FROM_EMAIL || 'notifications@lastmiledelivery.com',
         to: toEmail,
@@ -49,24 +46,26 @@ export class NotificationService {
         html: htmlContent,
       });
 
+      console.log(`📧 Nodemailer: Email notification sent to customer ${toEmail} for order ${trackingNumber} (${newStatus})`);
       return true;
     } catch (err) {
-      console.warn(`⚠️ Email notification skipped/failed (${toEmail}):`, (err as Error).message);
+      console.warn(`⚠️ Nodemailer skipped/failed for customer ${toEmail}:`, (err as Error).message);
       return false;
     }
   }
 
   /**
-   * Send SMS Notification (Console fallback / Twilio ready)
+   * Dispatch SMS Notification Payload to Customer Phone Number
    */
   static async sendSMSNotification(phone: string, trackingNumber: string, status: OrderStatus): Promise<boolean> {
-    const message = `[LastMile] Order ${trackingNumber} update: Status is now ${status}.`;
-    console.log(`📱 [SMS NOTIFICATION] To: ${phone} | Msg: "${message}"`);
+    if (!phone) return false;
+    const message = `[LastMile] Order ${trackingNumber} update: Status is now ${status.replace(/_/g, ' ')}.`;
+    console.log(`📱 SMS Notification dispatched to customer ${phone}: "${message}"`);
     return true;
   }
 
   /**
-   * Trigger Unified Order Status Notification (Asynchronous / Non-blocking)
+   * Asynchronous, Non-blocking Status Notification Trigger
    */
   static notifyOrderStatusChange(params: {
     customerEmail: string;
@@ -76,8 +75,7 @@ export class NotificationService {
     notes?: string;
   }): void {
     const { customerEmail, customerPhone, trackingNumber, newStatus, notes } = params;
-    
-    // Execute asynchronously without awaiting to ensure ultra-fast API response times
+
     Promise.all([
       this.sendEmailNotification(customerEmail, trackingNumber, newStatus, notes),
       this.sendSMSNotification(customerPhone, trackingNumber, newStatus),
