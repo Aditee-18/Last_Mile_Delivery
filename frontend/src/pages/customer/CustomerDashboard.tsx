@@ -14,16 +14,16 @@ export const CustomerDashboard: React.FC = () => {
   const [isCalculatingQuote, setIsCalculatingQuote] = useState(false);
 
   const [bookingData, setBookingData] = useState({
-    pickupAddress: 'Connaught Place, Block A, New Delhi',
-    dropAddress: 'Karol Bagh Metro Station, New Delhi',
-    lengthCm: 30,
-    widthCm: 20,
-    heightCm: 15,
-    actualWeightKg: 2.0,
-    orderType: OrderType.B2C,
-    paymentType: PaymentType.COD,
-    pickupPincode: '110001',
-    dropPincode: '110005',
+    pickupAddress: '',
+    dropAddress: '',
+    lengthCm: '',
+    widthCm: '',
+    heightCm: '',
+    actualWeightKg: '',
+    orderType: '',
+    paymentType: '',
+    pickupPincode: '',
+    dropPincode: '',
   });
 
   const [selectedFailedOrder, setSelectedFailedOrder] = useState<Order | null>(null);
@@ -42,15 +42,41 @@ export const CustomerDashboard: React.FC = () => {
   };
 
   const handleCalculateQuote = async () => {
+    if (!bookingData.orderType) {
+      alert('Please select an order type.');
+      return;
+    }
+    if (!bookingData.paymentType) {
+      alert('Please select a payment type.');
+      return;
+    }
+    if (!bookingData.pickupPincode || !bookingData.dropPincode) {
+      alert('Please enter valid pickup and drop pincodes.');
+      return;
+    }
+    const lengthCm = Number(bookingData.lengthCm);
+    const widthCm = Number(bookingData.widthCm);
+    const heightCm = Number(bookingData.heightCm);
+    const actualWeightKg = Number(bookingData.actualWeightKg);
+
+    if (isNaN(lengthCm) || lengthCm <= 0 || isNaN(widthCm) || widthCm <= 0 || isNaN(heightCm) || heightCm <= 0) {
+      alert('Please enter valid positive package dimensions.');
+      return;
+    }
+    if (isNaN(actualWeightKg) || actualWeightKg <= 0) {
+      alert('Please enter a valid positive actual weight.');
+      return;
+    }
+
     try {
       setIsCalculatingQuote(true);
       const res = await apiClient.post('/customer/orders/quote', {
-        lengthCm: Number(bookingData.lengthCm),
-        widthCm: Number(bookingData.widthCm),
-        heightCm: Number(bookingData.heightCm),
-        actualWeightKg: Number(bookingData.actualWeightKg),
-        orderType: bookingData.orderType,
-        paymentType: bookingData.paymentType,
+        lengthCm,
+        widthCm,
+        heightCm,
+        actualWeightKg,
+        orderType: bookingData.orderType as OrderType,
+        paymentType: bookingData.paymentType as PaymentType,
         pickupPincode: bookingData.pickupPincode,
         dropPincode: bookingData.dropPincode,
       });
@@ -66,17 +92,53 @@ export const CustomerDashboard: React.FC = () => {
 
   const handleBookOrderSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!bookingData.orderType) {
+      alert('Please select an order type.');
+      return;
+    }
+    if (!bookingData.paymentType) {
+      alert('Please select a payment type.');
+      return;
+    }
+    const lengthCm = Number(bookingData.lengthCm);
+    const widthCm = Number(bookingData.widthCm);
+    const heightCm = Number(bookingData.heightCm);
+    const actualWeightKg = Number(bookingData.actualWeightKg);
+
+    if (isNaN(lengthCm) || lengthCm <= 0 || isNaN(widthCm) || widthCm <= 0 || isNaN(heightCm) || heightCm <= 0) {
+      alert('Please enter valid positive package dimensions.');
+      return;
+    }
+    if (isNaN(actualWeightKg) || actualWeightKg <= 0) {
+      alert('Please enter a valid positive actual weight.');
+      return;
+    }
+
     try {
       const res = await apiClient.post('/customer/orders/create', {
         ...bookingData,
-        lengthCm: Number(bookingData.lengthCm),
-        widthCm: Number(bookingData.widthCm),
-        heightCm: Number(bookingData.heightCm),
-        actualWeightKg: Number(bookingData.actualWeightKg),
+        lengthCm,
+        widthCm,
+        heightCm,
+        actualWeightKg,
+        orderType: bookingData.orderType as OrderType,
+        paymentType: bookingData.paymentType as PaymentType,
       });
       alert(`Order Booked Successfully! Tracking Code: ${res.data.data.trackingNumber}`);
       setShowBookingModal(false);
       setQuote(null);
+      setBookingData({
+        pickupAddress: '',
+        dropAddress: '',
+        lengthCm: '',
+        widthCm: '',
+        heightCm: '',
+        actualWeightKg: '',
+        orderType: '',
+        paymentType: '',
+        pickupPincode: '',
+        dropPincode: '',
+      });
       fetchMyOrders();
     } catch (err: any) {
       alert(err.response?.data?.error || 'Order booking failed.');
@@ -91,7 +153,7 @@ export const CustomerDashboard: React.FC = () => {
         rescheduledDate,
         notes: rescheduleNotes,
       });
-      alert('Order rescheduled successfully! Agent reassignment in progress.');
+      alert('Delivery attempt rescheduled successfully!');
       setSelectedFailedOrder(null);
       setRescheduledDate('');
       setRescheduleNotes('');
@@ -101,9 +163,22 @@ export const CustomerDashboard: React.FC = () => {
     }
   };
 
+  const completedCount = orders.filter((o) => o.status === OrderStatus.DELIVERED).length;
+  const activeCount = orders.filter((o) =>
+    ['CREATED', 'ASSIGNED', 'PICKED_UP', 'IN_TRANSIT', 'OUT_FOR_DELIVERY'].includes(o.status)
+  ).length;
+
   return (
     <div className="min-h-screen bg-slate-950 text-white pb-16">
-      <HeroBanner onTrackOrder={(trk) => setTrackingNumberSearch(trk)} />
+      <HeroBanner
+        metrics={{
+          completed: completedCount,
+          active: activeCount,
+          totalCustomers: orders.length > 0 ? 1 : 0,
+          totalRevenue: orders.reduce((acc, curr) => (curr.status === 'DELIVERED' ? acc + Number(curr.total_charge) : acc), 0),
+        }}
+        onTrackOrder={(trk) => setTrackingNumberSearch(trk)}
+      />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
         <div id="my-deliveries-section" className="flex items-center justify-between bg-slate-900 border border-slate-800 rounded-3xl p-6 mb-8">
@@ -112,82 +187,106 @@ export const CustomerDashboard: React.FC = () => {
             <p className="text-xs text-slate-400">Track active orders, view quotes, or reschedule failed delivery attempts</p>
           </div>
           <button
-            onClick={() => setShowBookingModal(true)}
-            className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-5 py-3 rounded-2xl text-xs flex items-center space-x-2 transition-all shadow-lg hover:shadow-blue-500/25"
+            onClick={() => {
+              setQuote(null);
+              setShowBookingModal(true);
+            }}
+            className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold px-5 py-3 rounded-2xl text-xs flex items-center space-x-2 transition-all shadow-lg hover:shadow-blue-500/25"
           >
             <Plus className="w-4 h-4" />
             <span>Book New Delivery</span>
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {orders.map((o) => (
-            <div key={o.id} className="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4 relative flex flex-col justify-between hover:border-slate-700 transition-colors">
-              <div>
-                <div className="flex items-center justify-between mb-3 border-b border-slate-800 pb-3">
-                  <span className="text-xs font-mono font-bold text-blue-400">{o.tracking_number}</span>
-                  <span
-                    className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border ${
-                      o.status === OrderStatus.FAILED
-                        ? 'bg-red-500/20 text-red-400 border-red-500/30'
-                        : o.status === OrderStatus.DELIVERED
-                        ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-                        : 'bg-blue-500/20 text-blue-400 border-blue-500/30'
-                    }`}
-                  >
-                    {o.status.replace(/_/g, ' ')}
-                  </span>
+        {orders.length === 0 ? (
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-12 text-center text-slate-400">
+            <Package className="w-12 h-12 text-slate-600 mx-auto mb-3" />
+            <h4 className="text-base font-bold text-white mb-1">No orders found</h4>
+            <p className="text-xs text-slate-400 max-w-sm mx-auto mb-6">
+              You haven't placed any delivery orders yet. Click below to book your first shipment.
+            </p>
+            <button
+              onClick={() => {
+                setQuote(null);
+                setShowBookingModal(true);
+              }}
+              className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-4 py-2.5 rounded-xl text-xs inline-flex items-center space-x-2"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Book First Delivery</span>
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {orders.map((o) => (
+              <div
+                key={o.id}
+                className="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4 relative hover:border-slate-700 transition-colors shadow-xl flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <span className="text-xs font-mono font-bold text-blue-400">{o.tracking_number}</span>
+                    <span
+                      className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${
+                        o.status === OrderStatus.DELIVERED
+                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                          : o.status === OrderStatus.FAILED
+                          ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                          : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                      }`}
+                    >
+                      {o.status.replace(/_/g, ' ')}
+                    </span>
+                  </div>
+
+                  <div className="space-y-2 text-xs text-slate-300 mt-3">
+                    <p>📍 <strong>Pickup:</strong> {o.pickup_address}</p>
+                    <p>🏁 <strong>Drop:</strong> {o.drop_address}</p>
+                    <div className="flex justify-between text-slate-400 pt-2 border-t border-slate-800/80">
+                      <span>Weight: <strong className="text-white">{o.chargeable_weight_kg} kg</strong></span>
+                      <span>Total: <strong className="text-emerald-400">₹{o.total_charge}</strong></span>
+                    </div>
+                    {o.agent_name && (
+                      <p className="text-[11px] text-slate-400 pt-1">
+                        🚚 Agent: <strong className="text-white">{o.agent_name}</strong> ({o.agent_phone})
+                      </p>
+                    )}
+                  </div>
                 </div>
 
-                <div className="space-y-2 text-xs">
-                  <div>
-                    <span className="text-slate-500 font-medium">Pickup:</span>
-                    <p className="text-slate-200 font-medium truncate">{o.pickup_address}</p>
-                  </div>
-                  <div>
-                    <span className="text-slate-500 font-medium">Drop:</span>
-                    <p className="text-slate-200 font-medium truncate">{o.drop_address}</p>
-                  </div>
-
-                  <div className="pt-2 flex items-center justify-between text-slate-400 border-t border-slate-800/80">
-                    <span>Chargeable: <strong className="text-white">{o.chargeable_weight_kg} kg</strong></span>
-                    <span>Total: <strong className="text-blue-400 font-extrabold text-sm">₹{o.total_charge}</strong></span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="pt-4 border-t border-slate-800 flex items-center gap-2">
-                <button
-                  onClick={() => setTrackingNumberSearch(o.tracking_number)}
-                  className="flex-1 bg-slate-800 hover:bg-slate-700 text-white font-bold py-2 rounded-xl text-xs flex items-center justify-center space-x-1.5 transition-colors border border-slate-700"
-                >
-                  <Clock className="w-3.5 h-3.5 text-blue-400" />
-                  <span>Live Tracking</span>
-                </button>
-
-                {o.status === OrderStatus.FAILED && (
+                <div className="pt-4 border-t border-slate-800 flex items-center justify-between gap-2">
                   <button
-                    onClick={() => setSelectedFailedOrder(o)}
-                    className="flex-1 bg-red-600/20 hover:bg-red-600/30 text-red-300 border border-red-500/30 font-bold py-2 rounded-xl text-xs flex items-center justify-center space-x-1.5 transition-colors"
+                    onClick={() => setTrackingNumberSearch(o.tracking_number)}
+                    className="flex-1 bg-slate-800 hover:bg-slate-700 text-white font-bold py-2.5 rounded-xl text-xs transition-colors flex items-center justify-center space-x-1"
                   >
-                    <RefreshCw className="w-3.5 h-3.5 text-red-400" />
-                    <span>Reschedule</span>
+                    <span>Track Order</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
                   </button>
-                )}
+
+                  {o.status === OrderStatus.FAILED && (
+                    <button
+                      onClick={() => setSelectedFailedOrder(o)}
+                      className="bg-red-600 hover:bg-red-500 text-white font-bold py-2.5 px-3 rounded-xl text-xs transition-colors flex items-center space-x-1"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      <span>Reschedule</span>
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {showBookingModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-xl w-full p-6 text-white relative my-8 shadow-2xl">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-lg w-full p-6 text-white relative shadow-2xl my-8">
             <button onClick={() => setShowBookingModal(false)} className="absolute top-4 right-4 text-slate-400 hover:text-white">
               <X className="w-5 h-5" />
             </button>
             <h3 className="text-xl font-bold mb-1">Book New Delivery Order</h3>
-            <p className="text-xs text-slate-400 mb-6">Enter package dimensions & addresses for instant pre-confirmation price breakdown</p>
+            <p className="text-xs text-slate-400 mb-6">Enter package specs & address details for real-time rate quote</p>
 
             <form onSubmit={handleBookOrderSubmit} className="space-y-4 text-xs">
               <div className="grid grid-cols-2 gap-3">
@@ -198,7 +297,8 @@ export const CustomerDashboard: React.FC = () => {
                     required
                     value={bookingData.pickupAddress}
                     onChange={(e) => setBookingData({ ...bookingData, pickupAddress: e.target.value })}
-                    className="w-full mt-1 p-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white"
+                    placeholder="e.g. Rohini Sector 25, Delhi"
+                    className="w-full mt-1 p-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 <div>
@@ -209,7 +309,8 @@ export const CustomerDashboard: React.FC = () => {
                     maxLength={6}
                     value={bookingData.pickupPincode}
                     onChange={(e) => setBookingData({ ...bookingData, pickupPincode: e.target.value })}
-                    className="w-full mt-1 p-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white font-mono"
+                    placeholder="e.g. 110085"
+                    className="w-full mt-1 p-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
               </div>
@@ -222,7 +323,8 @@ export const CustomerDashboard: React.FC = () => {
                     required
                     value={bookingData.dropAddress}
                     onChange={(e) => setBookingData({ ...bookingData, dropAddress: e.target.value })}
-                    className="w-full mt-1 p-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white"
+                    placeholder="e.g. Connaught Place, Block A, New Delhi"
+                    className="w-full mt-1 p-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 <div>
@@ -233,7 +335,8 @@ export const CustomerDashboard: React.FC = () => {
                     maxLength={6}
                     value={bookingData.dropPincode}
                     onChange={(e) => setBookingData({ ...bookingData, dropPincode: e.target.value })}
-                    className="w-full mt-1 p-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white font-mono"
+                    placeholder="e.g. 110001"
+                    className="w-full mt-1 p-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
               </div>
@@ -244,8 +347,9 @@ export const CustomerDashboard: React.FC = () => {
                   <input
                     type="number"
                     value={bookingData.lengthCm}
-                    onChange={(e) => setBookingData({ ...bookingData, lengthCm: Number(e.target.value) })}
-                    className="w-full mt-1 p-2 bg-slate-800 border border-slate-700 rounded-xl text-white font-bold"
+                    onChange={(e) => setBookingData({ ...bookingData, lengthCm: e.target.value })}
+                    placeholder="e.g. 30"
+                    className="w-full mt-1 p-2 bg-slate-800 border border-slate-700 rounded-xl text-white font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 <div>
@@ -253,8 +357,9 @@ export const CustomerDashboard: React.FC = () => {
                   <input
                     type="number"
                     value={bookingData.widthCm}
-                    onChange={(e) => setBookingData({ ...bookingData, widthCm: Number(e.target.value) })}
-                    className="w-full mt-1 p-2 bg-slate-800 border border-slate-700 rounded-xl text-white font-bold"
+                    onChange={(e) => setBookingData({ ...bookingData, widthCm: e.target.value })}
+                    placeholder="e.g. 20"
+                    className="w-full mt-1 p-2 bg-slate-800 border border-slate-700 rounded-xl text-white font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 <div>
@@ -262,8 +367,9 @@ export const CustomerDashboard: React.FC = () => {
                   <input
                     type="number"
                     value={bookingData.heightCm}
-                    onChange={(e) => setBookingData({ ...bookingData, heightCm: Number(e.target.value) })}
-                    className="w-full mt-1 p-2 bg-slate-800 border border-slate-700 rounded-xl text-white font-bold"
+                    onChange={(e) => setBookingData({ ...bookingData, heightCm: e.target.value })}
+                    placeholder="e.g. 15"
+                    className="w-full mt-1 p-2 bg-slate-800 border border-slate-700 rounded-xl text-white font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 <div>
@@ -272,8 +378,9 @@ export const CustomerDashboard: React.FC = () => {
                     type="number"
                     step="any"
                     value={bookingData.actualWeightKg}
-                    onChange={(e) => setBookingData({ ...bookingData, actualWeightKg: Number(e.target.value) })}
-                    className="w-full mt-1 p-2 bg-slate-800 border border-slate-700 rounded-xl text-white font-bold"
+                    onChange={(e) => setBookingData({ ...bookingData, actualWeightKg: e.target.value })}
+                    placeholder="e.g. 2.5"
+                    className="w-full mt-1 p-2 bg-slate-800 border border-slate-700 rounded-xl text-white font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
               </div>
@@ -283,9 +390,10 @@ export const CustomerDashboard: React.FC = () => {
                   <label className="text-slate-300 font-medium">Order Type</label>
                   <select
                     value={bookingData.orderType}
-                    onChange={(e) => setBookingData({ ...bookingData, orderType: e.target.value as OrderType })}
-                    className="w-full mt-1 p-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white font-bold"
+                    onChange={(e) => setBookingData({ ...bookingData, orderType: e.target.value })}
+                    className="w-full mt-1 p-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
+                    <option value="">Select order type</option>
                     <option value="B2C">B2C (Consumer)</option>
                     <option value="B2B">B2B (Business)</option>
                   </select>
@@ -294,9 +402,10 @@ export const CustomerDashboard: React.FC = () => {
                   <label className="text-slate-300 font-medium">Payment Type</label>
                   <select
                     value={bookingData.paymentType}
-                    onChange={(e) => setBookingData({ ...bookingData, paymentType: e.target.value as PaymentType })}
-                    className="w-full mt-1 p-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white font-bold"
+                    onChange={(e) => setBookingData({ ...bookingData, paymentType: e.target.value })}
+                    className="w-full mt-1 p-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
+                    <option value="">Select payment type</option>
                     <option value="COD">Cash on Delivery (COD)</option>
                     <option value="PREPAID">Prepaid</option>
                   </select>
@@ -308,7 +417,7 @@ export const CustomerDashboard: React.FC = () => {
                   type="button"
                   onClick={handleCalculateQuote}
                   disabled={isCalculatingQuote}
-                  className="flex-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 font-bold py-2.5 rounded-xl text-xs"
+                  className="flex-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 font-bold py-2.5 rounded-xl text-xs transition-colors"
                 >
                   {isCalculatingQuote ? 'Calculating...' : 'Preview Price Quote'}
                 </button>

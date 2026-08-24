@@ -53,14 +53,14 @@ export const AdminDashboard: React.FC = () => {
     customerId: '',
     pickupAddress: '',
     dropAddress: '',
-    lengthCm: 30,
-    widthCm: 20,
-    heightCm: 15,
-    actualWeightKg: 2.5,
-    orderType: OrderType.B2C,
-    paymentType: PaymentType.COD,
-    pickupPincode: '110001',
-    dropPincode: '110005',
+    lengthCm: '',
+    widthCm: '',
+    heightCm: '',
+    actualWeightKg: '',
+    orderType: '',
+    paymentType: '',
+    pickupPincode: '',
+    dropPincode: '',
   });
 
   const [selectedOrderForOverride, setSelectedOrderForOverride] = useState<Order | null>(null);
@@ -271,10 +271,53 @@ export const AdminDashboard: React.FC = () => {
 
   const handleCreateOnBehalf = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!onBehalfData.orderType) {
+      alert('Please select an order type.');
+      return;
+    }
+    if (!onBehalfData.paymentType) {
+      alert('Please select a payment type.');
+      return;
+    }
+    const lengthCm = Number(onBehalfData.lengthCm);
+    const widthCm = Number(onBehalfData.widthCm);
+    const heightCm = Number(onBehalfData.heightCm);
+    const actualWeightKg = Number(onBehalfData.actualWeightKg);
+
+    if (isNaN(lengthCm) || lengthCm <= 0 || isNaN(widthCm) || widthCm <= 0 || isNaN(heightCm) || heightCm <= 0) {
+      alert('Please enter valid positive package dimensions.');
+      return;
+    }
+    if (isNaN(actualWeightKg) || actualWeightKg <= 0) {
+      alert('Please enter a valid positive actual weight.');
+      return;
+    }
+
     try {
-      const res = await apiClient.post('/admin/orders/create-on-behalf', onBehalfData);
+      const res = await apiClient.post('/admin/orders/create-on-behalf', {
+        ...onBehalfData,
+        lengthCm,
+        widthCm,
+        heightCm,
+        actualWeightKg,
+        orderType: onBehalfData.orderType as OrderType,
+        paymentType: onBehalfData.paymentType as PaymentType,
+      });
       alert(`Order created successfully! Tracking #: ${res.data.data.trackingNumber}`);
       setShowOnBehalfModal(false);
+      setOnBehalfData({
+        customerId: '',
+        pickupAddress: '',
+        dropAddress: '',
+        lengthCm: '',
+        widthCm: '',
+        heightCm: '',
+        actualWeightKg: '',
+        orderType: '',
+        paymentType: '',
+        pickupPincode: '',
+        dropPincode: '',
+      });
       fetchOrders();
     } catch (err: any) {
       alert(err.response?.data?.error || 'On-behalf order creation failed.');
@@ -965,9 +1008,25 @@ export const AdminDashboard: React.FC = () => {
                     required
                     value={onBehalfData.pickupAddress}
                     onChange={(e) => setOnBehalfData({ ...onBehalfData, pickupAddress: e.target.value })}
+                    placeholder="e.g. Rohini Sector 25, Delhi"
                     className="w-full mt-1 p-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white"
                   />
                 </div>
+                <div>
+                  <label className="text-slate-300 font-medium">Pickup Pincode</label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={6}
+                    value={onBehalfData.pickupPincode}
+                    onChange={(e) => setOnBehalfData({ ...onBehalfData, pickupPincode: e.target.value })}
+                    placeholder="e.g. 110085"
+                    className="w-full mt-1 p-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-slate-300 font-medium">Drop Address</label>
                   <input
@@ -975,7 +1034,20 @@ export const AdminDashboard: React.FC = () => {
                     required
                     value={onBehalfData.dropAddress}
                     onChange={(e) => setOnBehalfData({ ...onBehalfData, dropAddress: e.target.value })}
+                    placeholder="e.g. Connaught Place, Block A, New Delhi"
                     className="w-full mt-1 p-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white"
+                  />
+                </div>
+                <div>
+                  <label className="text-slate-300 font-medium">Drop Pincode</label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={6}
+                    value={onBehalfData.dropPincode}
+                    onChange={(e) => setOnBehalfData({ ...onBehalfData, dropPincode: e.target.value })}
+                    placeholder="e.g. 110001"
+                    className="w-full mt-1 p-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white font-mono"
                   />
                 </div>
               </div>
@@ -986,7 +1058,8 @@ export const AdminDashboard: React.FC = () => {
                   <input
                     type="number"
                     value={onBehalfData.lengthCm}
-                    onChange={(e) => setOnBehalfData({ ...onBehalfData, lengthCm: Number(e.target.value) })}
+                    onChange={(e) => setOnBehalfData({ ...onBehalfData, lengthCm: e.target.value })}
+                    placeholder="e.g. 30"
                     className="w-full mt-1 p-2 bg-slate-800 border border-slate-700 rounded-xl text-white"
                   />
                 </div>
@@ -995,7 +1068,8 @@ export const AdminDashboard: React.FC = () => {
                   <input
                     type="number"
                     value={onBehalfData.widthCm}
-                    onChange={(e) => setOnBehalfData({ ...onBehalfData, widthCm: Number(e.target.value) })}
+                    onChange={(e) => setOnBehalfData({ ...onBehalfData, widthCm: e.target.value })}
+                    placeholder="e.g. 20"
                     className="w-full mt-1 p-2 bg-slate-800 border border-slate-700 rounded-xl text-white"
                   />
                 </div>
@@ -1004,7 +1078,8 @@ export const AdminDashboard: React.FC = () => {
                   <input
                     type="number"
                     value={onBehalfData.heightCm}
-                    onChange={(e) => setOnBehalfData({ ...onBehalfData, heightCm: Number(e.target.value) })}
+                    onChange={(e) => setOnBehalfData({ ...onBehalfData, heightCm: e.target.value })}
+                    placeholder="e.g. 15"
                     className="w-full mt-1 p-2 bg-slate-800 border border-slate-700 rounded-xl text-white"
                   />
                 </div>
@@ -1014,7 +1089,8 @@ export const AdminDashboard: React.FC = () => {
                     type="number"
                     step="any"
                     value={onBehalfData.actualWeightKg}
-                    onChange={(e) => setOnBehalfData({ ...onBehalfData, actualWeightKg: Number(e.target.value) })}
+                    onChange={(e) => setOnBehalfData({ ...onBehalfData, actualWeightKg: e.target.value })}
+                    placeholder="e.g. 2.5"
                     className="w-full mt-1 p-2 bg-slate-800 border border-slate-700 rounded-xl text-white"
                   />
                 </div>
@@ -1028,8 +1104,9 @@ export const AdminDashboard: React.FC = () => {
                     onChange={(e) => setOnBehalfData({ ...onBehalfData, orderType: e.target.value as OrderType })}
                     className="w-full mt-1 p-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white"
                   >
-                    <option value="B2C">B2C</option>
-                    <option value="B2B">B2B</option>
+                    <option value="">Select order type</option>
+                    <option value="B2C">B2C (Consumer)</option>
+                    <option value="B2B">B2B (Business)</option>
                   </select>
                 </div>
                 <div>
@@ -1039,8 +1116,9 @@ export const AdminDashboard: React.FC = () => {
                     onChange={(e) => setOnBehalfData({ ...onBehalfData, paymentType: e.target.value as PaymentType })}
                     className="w-full mt-1 p-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white"
                   >
-                    <option value="COD">COD</option>
-                    <option value="PREPAID">PREPAID</option>
+                    <option value="">Select payment type</option>
+                    <option value="COD">Cash on Delivery (COD)</option>
+                    <option value="PREPAID">Prepaid</option>
                   </select>
                 </div>
               </div>
