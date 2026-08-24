@@ -9,10 +9,13 @@ const dbHost = process.env.DB_HOST || 'localhost';
 const dbPort = process.env.DB_PORT || '5432';
 const dbName = process.env.DB_NAME || 'last_mile_delivery';
 
-const connectionString = `postgres://${dbUser}:${encodeURIComponent(dbPassword)}@${dbHost}:${dbPort}/${dbName}`;
+const connectionString =
+  process.env.DATABASE_URL ||
+  `postgres://${dbUser}:${encodeURIComponent(dbPassword)}@${dbHost}:${dbPort}/${dbName}`;
 
 export const pool = new Pool({
   connectionString,
+  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
   max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 5000,
