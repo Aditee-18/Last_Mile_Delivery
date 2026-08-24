@@ -23,26 +23,32 @@ The platform provides real-time zone detection, dynamic volumetric weight pricin
 
 ---
 
-## ✨ Features & Capabilities
+## 👥 User Roles & Dashboard Functionality Breakdown
 
-### 👤 Customer Features
-- **Instant Pre-Confirmation Price Quotes**: Calculate transparent delivery charges based on package dimensions, weight, pickup/drop pincodes, and order type before booking.
-- **Order Placement**: Place B2B or B2C shipments with Prepaid or Cash-on-Delivery (COD) payment modes.
-- **Live Order Tracking**: Track active shipments using a unique tracking code (`TRK-...`) with an immutable event timeline.
-- **Failed Delivery Rescheduling**: Select new delivery dates and trigger automatic agent reassignment when a delivery attempt fails.
+The platform provides role-separated dashboards tailored specifically to the operational needs of each user type:
 
-### 🚚 Delivery Agent Features
-- **Operational Console**: View assigned task queue with customer details, pickup/drop addresses, package specifications, and call links.
-- **Duty Availability Selector**: Toggle live availability status (`AVAILABLE`, `BUSY`, `OFFLINE`).
-- **GPS Location Telemetry**: Broadcast live latitude and longitude coordinates to PostgreSQL.
-- **Milestone Progression**: Advance order status step-by-step (`PICKED_UP` \(\rightarrow\) `IN_TRANSIT` \(\rightarrow\) `OUT_FOR_DELIVERY` \(\rightarrow\) `DELIVERED`).
-- **Delivery Failure Flagging**: Record failure reasons (e.g., recipient unavailable) and notify customers to reschedule.
+### 1. Customer Dashboard (`/dashboard`)
+- **Real-Time Price Quote Calculation**: Instant freight rate breakdown before confirming an order.
+- **Shipment Placement Modal**: Create B2B/B2C, Prepaid/COD orders with address, pincode, and package specs.
+- **My Deliveries List**: View active and past orders created by the logged-in customer.
+- **Tracking Timeline Modal**: Open live audit trail showing chronological event history for any order.
+- **Delivery Rescheduling**: Select new delivery date and instructions when an attempt enters `FAILED` status.
 
-### 🛡️ Admin Control Plane
-- **Interactive Data Table Rate Cards**: Configure dynamic base fares, weight slabs, per-kg rates, and minimum guaranteed charges for `B2B Intra`, `B2B Inter`, `B2C Intra`, and `B2C Inter` combinations.
-- **Zone & Area Management**: Define geographic bounding boxes (`min_lat`, `max_lat`, `min_lng`, `max_lng`) and bulk-import pincode mappings via CSV.
-- **Agent Workforce Provisioning**: Provision delivery agent accounts securely without public registration.
-- **Dispatch Control**: Manually assign agents, trigger spatial auto-assignment, or override status milestones with mandatory audit logging.
+### 2. Delivery Agent Dashboard (`/agent/dashboard`)
+- **Personalized Header & Availability Toggle**: View duty status and toggle between `AVAILABLE`, `BUSY`, and `OFFLINE`.
+- **GPS Telemetry Broadcast**: Click `[ GPS ]` button to capture device coordinates via browser Geolocation API and send updates to PostgreSQL (`PUT /api/agent/location`).
+- **Operational Task Queue**: Scoped strictly to orders assigned to the logged-in agent (`assigned_agent_id = req.user.userId`).
+- **Milestone Advancement**: Step-by-step order lifecycle progression (`PICKED_UP` \(\rightarrow\) `IN_TRANSIT` \(\rightarrow\) `OUT_FOR_DELIVERY` \(\rightarrow\) `DELIVERED`).
+- **Failure Reporting**: Flag failed delivery attempts with mandatory reason notes, transitioning order to `FAILED` and notifying customer.
+
+### 3. Admin Control Plane (`/admin/dashboard`)
+- **Interactive Rate Cards Data Table**: Configure dynamic pricing rules (`B2B Intra`, `B2B Inter`, `B2C Intra`, `B2C Inter`).
+- **Zone & Area Manager**: Define lat/lng bounding boxes and bulk-import pincode to zone mappings via CSV.
+- **Workforce Agent Provisioning**: Create and assign new delivery agents securely without public registration.
+- **Order Management & Dispatch**: View all orders, filter by status/zone/agent, trigger spatial auto-assignment, or manually override status milestones with mandatory audit logging.
+- **Restricted Financial & Operational Analytics**: View platform revenue, total orders, pending orders, and agent status breakdowns.
+
+---
 ### 📊 Platform Metrics Model
 
 The platform structures metrics into two distinct security and operational tiers:
