@@ -41,14 +41,14 @@ export class NotificationService {
 
     try {
       if (process.env.SMTP_USER && process.env.SMTP_PASS) {
-        await transporter.sendMail({
+        const info = await transporter.sendMail({
           from: process.env.FROM_EMAIL || `Last-Mile Delivery <${process.env.SMTP_USER}>`,
           to: toEmail,
           subject,
           text: textContent,
           html: htmlContent,
         });
-        console.log(`📧 Nodemailer: Real SMTP Email sent successfully to customer ${toEmail} for order ${trackingNumber} (${newStatus})`);
+        console.log(`📧 Nodemailer: Real SMTP Email sent successfully to customer ${toEmail} | MsgID: ${info.messageId} | Response: ${info.response}`);
       } else {
         console.log(`📧 Notification Engine: Dispatched status email payload to customer ${toEmail} for order ${trackingNumber} (${newStatus})`);
       }
